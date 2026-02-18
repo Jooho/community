@@ -20,6 +20,7 @@ Please see [membership.md](membership.md) that defines the various responsibilit
 | Edgar Hernández        | [israel-hdez](https://github.com/israel-hdez)         | Reviewer - KServe    | Red Hat     |
 | Johnu George           | [johnugeorge](https://github.com/johnugeorge)         | Reviewer - KServe    | Nutanix     |
 | Filippe Spolti         | [spolti](https://github.com/spolti)                   | Reviewer - KServe    | Red Hat     |
+| Pierangelo Di Pilato   | [pierDipi](https://github.com/pierDipi)               | Reviewer - KServe    | Red Hat     |
 
 
 ## Alumni
