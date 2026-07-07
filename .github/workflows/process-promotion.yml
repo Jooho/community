@@ -1,0 +1,105 @@
+name: Process Approved Promotion
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  process:
+    if: >
+      contains(github.event.issue.labels.*.name, 'promoted') &&
+      startsWith(github.event.issue.title, 'REQUEST: Promotion to')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Parse issue title
+        id: parse
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          USERNAME=$(echo "${TITLE}" | sed -n 's/.*for @*\([^ ]*\)/\1/p')
+          TARGET=$(echo "${TITLE}" | sed -n 's/.*Promotion to \([^ ]*\).*/\1/p' | tr '[:upper:]' '[:lower:]')
+          echo "username=${USERNAME}" >> "$GITHUB_OUTPUT"
+          echo "target=${TARGET}" >> "$GITHUB_OUTPUT"
+
+      - name: Clone target repo and update OWNERS
+        env:
+          PROMOTION_TOKEN: ${{ secrets.PROMOTION_TOKEN }}
+        run: |
+          USERNAME="${{ steps.parse.outputs.username }}"
+          TARGET="${{ steps.parse.outputs.target }}"
+          BRANCH="promote-${USERNAME}-to-${TARGET}"
+          ISSUE_NUM="${{ github.event.issue.number }}"
+
+          git clone "https://x-access-token:${PROMOTION_TOKEN}@github.com/kserve/kserve.git" /tmp/kserve
+          cd /tmp/kserve
+          git checkout -b "${BRANCH}"
+
+          python3 - "${USERNAME}" "${TARGET}" <<'PYTHON'
+          import sys
+
+          username = sys.argv[1]
+          target = sys.argv[2]
+
+          with open("OWNERS", "r") as f:
+              lines = f.readlines()
+
+          result = []
+          in_section = None
+          added = {target + "s": False}
+          if target == "approver":
+              added["reviewers"] = False
+
+          for line in lines:
+              stripped = line.strip()
+              if stripped in ("approvers:", "reviewers:", "project-leads:"):
+                  if in_section and not added.get(in_section, True):
+                      result.append(f"  - {username}\n")
+                      added[in_section] = True
+                  in_section = stripped.rstrip(":")
+
+              if stripped and not stripped.startswith("-") and not stripped.startswith("#") \
+                 and stripped not in ("approvers:", "reviewers:", "project-leads:"):
+                  if in_section and not added.get(in_section, True):
+                      result.append(f"  - {username}\n")
+                      added[in_section] = True
+                  in_section = None
+
+              result.append(line)
+
+          if in_section and not added.get(in_section, True):
+              result.append(f"  - {username}\n")
+
+          with open("OWNERS", "w") as f:
+              f.writelines(result)
+          PYTHON
+
+          git add OWNERS
+          git -c user.name="github-actions" -c user.email="actions@github.com" \
+            commit -m "Promote ${USERNAME} to ${TARGET}
+
+          Ref: https://github.com/kserve/community/issues/${ISSUE_NUM}"
+
+          git push origin "${BRANCH}"
+
+      - name: Create PR to kserve/kserve
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_TOKEN }}
+        run: |
+          USERNAME="${{ steps.parse.outputs.username }}"
+          TARGET="${{ steps.parse.outputs.target }}"
+          BRANCH="promote-${USERNAME}-to-${TARGET}"
+          ISSUE_NUM="${{ github.event.issue.number }}"
+
+          PR_URL=$(gh pr create \
+            --repo kserve/kserve \
+            --head "${BRANCH}" \
+            --base main \
+            --title "Promote ${USERNAME} to ${TARGET}" \
+            --body "Approved in https://github.com/kserve/community/issues/${ISSUE_NUM}")
+
+          gh issue comment "${ISSUE_NUM}" \
+            --repo kserve/community \
+            --body "OWNERS update PR created: ${PR_URL}"
