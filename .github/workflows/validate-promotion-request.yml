@@ -3,6 +3,23 @@ name: Validate Promotion Request
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Username to validate (without @)'
+        required: true
+        type: string
+      target_role:
+        description: 'Target role for promotion'
+        required: true
+        type: choice
+        options:
+          - reviewer
+          - approver
+      issue_number:
+        description: 'Issue number to comment on (optional)'
+        required: false
+        type: string
 
 jobs:
   validate:
@@ -17,12 +34,17 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Parse issue title
+      - name: Parse issue title or use manual inputs
         id: parse
         run: |
-          TITLE="${{ github.event.issue.title }}"
-          USERNAME=$(echo "${TITLE}" | sed -n 's/.*for @*\([^ ]*\)/\1/p')
-          TARGET=$(echo "${TITLE}" | sed -n 's/.*Promotion to \([^ ]*\).*/\1/p' | tr '[:upper:]' '[:lower:]')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            USERNAME="${{ github.event.inputs.username }}"
+            TARGET="${{ github.event.inputs.target_role }}"
+          else
+            TITLE="${{ github.event.issue.title }}"
+            USERNAME=$(echo "${TITLE}" | sed -n 's/.*for @*\([^ ]*\)/\1/p')
+            TARGET=$(echo "${TITLE}" | sed -n 's/.*Promotion to \([^ ]*\).*/\1/p' | tr '[:upper:]' '[:lower:]')
+          fi
           echo "username=${USERNAME}" >> "$GITHUB_OUTPUT"
           echo "target=${TARGET}" >> "$GITHUB_OUTPUT"
 
@@ -35,8 +57,17 @@ jobs:
             --target "${{ steps.parse.outputs.target }}" \
             --output markdown > validation.md
 
-      - name: Post validation comment
+      - name: Post validation comment or show result
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body-file validation.md
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "=== Manual Validation Result ==="
+            cat validation.md
+            if [ -n "${{ github.event.inputs.issue_number }}" ]; then
+              echo "Posting to issue #${{ github.event.inputs.issue_number }}..."
+              gh issue comment ${{ github.event.inputs.issue_number }} --body-file validation.md
+            fi
+          else
+            gh issue comment ${{ github.event.issue.number }} --body-file validation.md
+          fi

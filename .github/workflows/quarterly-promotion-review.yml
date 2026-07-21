@@ -4,6 +4,17 @@ on:
   schedule:
     - cron: '0 9 1 1,4,7,10 *'
   workflow_dispatch:
+    inputs:
+      reviewer_days:
+        description: 'Days to look back for activity (default: 90)'
+        required: false
+        default: '90'
+        type: string
+      inactive_days:
+        description: 'Days to consider inactive (default: 365)'
+        required: false
+        default: '365'
+        type: string
 
 jobs:
   review:
@@ -20,7 +31,17 @@ jobs:
       - name: Run promotion check
         env:
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 scripts/python/governance-check.py --output markdown > report.md
+        run: |
+          ARGS="--output markdown"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.reviewer_days }}" ]; then
+              ARGS="${ARGS} --reviewer-days ${{ github.event.inputs.reviewer_days }}"
+            fi
+            if [ -n "${{ github.event.inputs.inactive_days }}" ]; then
+              ARGS="${ARGS} --inactive-days ${{ github.event.inputs.inactive_days }}"
+            fi
+          fi
+          python3 scripts/python/governance-check.py ${ARGS} > report.md
 
       - name: Determine quarter label
         id: quarter
