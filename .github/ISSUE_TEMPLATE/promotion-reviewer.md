@@ -21,19 +21,29 @@ Promotion is requested for the following sub-project(s).
 ### Requirements
 
 - [ ] Member for at least 3 months (as of the membership meeting date)
-- [ ] Reviewer for or author of at least 5 substantial PRs to the codebase
-    - < link to PR 1 >
-    - < link to PR 2 >
-    - < link to PR 3 >
-    - < link to PR 4 >
-    - < link to PR 5 >
+- [ ] Author of at least 3 substantial PRs (merged)
+    - < link to authored PR 1 >
+    - < link to authored PR 2 >
+    - < link to authored PR 3 >
+- [ ] Primary reviewer for at least 5 substantial PRs from other contributors
+    - < link to reviewed PR 1 >
+    - < link to reviewed PR 2 >
+    - < link to reviewed PR 3 >
+    - < link to reviewed PR 4 >
+    - < link to reviewed PR 5 >
 
-### Lead Sponsor(s)
+### Sponsors
 
-Promotion to Reviewer requires sponsorship from at least one sub-project Lead.
+<!--
+Please only add the names after they explicitly +1 on the issue.
+-->
+
+#### Lead Sponsor(s)
+
+Promotion to Reviewer requires sponsorship from at least one project Lead.
 
 - @<sponsor-1>
 
-### Other Sponsors
+#### Other Sponsors
 
 - @<sponsor-1>

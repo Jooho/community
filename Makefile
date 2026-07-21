@@ -19,6 +19,16 @@ list-pr-reviewers:
 list-pr-authors:
 	@python3 scripts/python/list-contributors.py -r author -n 5
 
+.PHONY: governance-check
+## Validate open promotion requests and detect inactive maintainers
+governance-check:
+	@python3 scripts/python/governance-check.py --output markdown
+
+.PHONY: governance-check-user
+## Check promotion eligibility for a specific user (USER=username TARGET=reviewer|approver)
+governance-check-user:
+	@python3 scripts/python/governance-check.py --user $(USER) --target $(TARGET) --output markdown
+
 .DEFAULT_GOAL := help
 .PHONY: help
 ## Print Makefile documentation
