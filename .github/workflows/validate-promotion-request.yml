@@ -23,7 +23,9 @@ on:
 
 jobs:
   validate:
-    if: startsWith(github.event.issue.title, 'REQUEST: Promotion to')
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, 'REQUEST: Promotion to')
     runs-on: ubuntu-latest
     permissions:
       issues: write
