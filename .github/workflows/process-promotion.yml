@@ -3,24 +3,47 @@ name: Process Approved Promotion
 on:
   issues:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Username to promote (without @)'
+        required: true
+        type: string
+      target_role:
+        description: 'Target role for promotion'
+        required: true
+        type: choice
+        options:
+          - reviewer
+          - approver
+      issue_number:
+        description: 'Community issue number for reference'
+        required: true
+        type: string
 
 jobs:
   process:
     if: >
-      contains(github.event.issue.labels.*.name, 'promoted') &&
-      startsWith(github.event.issue.title, 'REQUEST: Promotion to')
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.issue.labels.*.name, 'promoted') &&
+       startsWith(github.event.issue.title, 'REQUEST: Promotion to'))
     runs-on: ubuntu-latest
     permissions:
       issues: write
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: Parse issue title
+      - name: Parse issue title or use manual inputs
         id: parse
         run: |
-          TITLE="${{ github.event.issue.title }}"
-          USERNAME=$(echo "${TITLE}" | sed -n 's/.*for @*\([^ ]*\)/\1/p')
-          TARGET=$(echo "${TITLE}" | sed -n 's/.*Promotion to \([^ ]*\).*/\1/p' | tr '[:upper:]' '[:lower:]')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            USERNAME="${{ github.event.inputs.username }}"
+            TARGET="${{ github.event.inputs.target_role }}"
+          else
+            TITLE="${{ github.event.issue.title }}"
+            USERNAME=$(echo "${TITLE}" | sed -n 's/.*for @*\([^ ]*\)/\1/p')
+            TARGET=$(echo "${TITLE}" | sed -n 's/.*Promotion to \([^ ]*\).*/\1/p' | tr '[:upper:]' '[:lower:]')
+          fi
           echo "username=${USERNAME}" >> "$GITHUB_OUTPUT"
           echo "target=${TARGET}" >> "$GITHUB_OUTPUT"
 
@@ -31,7 +54,11 @@ jobs:
           USERNAME="${{ steps.parse.outputs.username }}"
           TARGET="${{ steps.parse.outputs.target }}"
           BRANCH="promote-${USERNAME}-to-${TARGET}"
-          ISSUE_NUM="${{ github.event.issue.number }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ISSUE_NUM="${{ github.event.inputs.issue_number }}"
+          else
+            ISSUE_NUM="${{ github.event.issue.number }}"
+          fi
 
           git clone "https://x-access-token:${PROMOTION_TOKEN}@github.com/kserve/kserve.git" /tmp/kserve
           cd /tmp/kserve
@@ -91,7 +118,11 @@ jobs:
           USERNAME="${{ steps.parse.outputs.username }}"
           TARGET="${{ steps.parse.outputs.target }}"
           BRANCH="promote-${USERNAME}-to-${TARGET}"
-          ISSUE_NUM="${{ github.event.issue.number }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ISSUE_NUM="${{ github.event.inputs.issue_number }}"
+          else
+            ISSUE_NUM="${{ github.event.issue.number }}"
+          fi
 
           PR_URL=$(gh pr create \
             --repo kserve/kserve \
